@@ -8,6 +8,9 @@ import 'package:flutter_fast_forms/flutter_fast_forms.dart';
 import 'package:internet_checker_banner/internet_checker_banner.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:rounded_loading_button/rounded_loading_button.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'login_Page.dart';
 
 class NewClearing extends StatefulWidget {
   const NewClearing({Key? key}) : super(key: key);
@@ -36,10 +39,12 @@ class _NewClearingState extends State<NewClearing> {
 
   bool isConnected = false;
 
+  InternetCheckerBanner internetCheckerBanner = InternetCheckerBanner();
+
   @override
   void initState() {
     super.initState();
-    InternetCheckerBanner().initialize(
+    internetCheckerBanner.initialize(
       context,
       title: "لا يوجد إتصال إنترنت",
     );
@@ -62,7 +67,7 @@ class _NewClearingState extends State<NewClearing> {
 
   @override
   void dispose() {
-    InternetCheckerBanner().dispose();
+    internetCheckerBanner.dispose();
     super.dispose();
   }
 
@@ -76,13 +81,13 @@ class _NewClearingState extends State<NewClearing> {
     ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
-  void _sendInformation() async {
+  Future<void> _sendInformation() async {
     _formKey.currentState?.validate();
     bool valid = _formKey.currentState?.validate() ?? false;
     if (!valid) {
       _showMsg("قم بإصلاح جميع الأخطاء");
     } else {
-      if (!isConnected) {
+      if (isConnected) {
         _showMsg("لا يوجد إتصال إنترنت");
       } else {
         if (await _checkUser(clientIdFrom)) {
@@ -102,10 +107,10 @@ class _NewClearingState extends State<NewClearing> {
               _showMsg('حدث خطأ ما, جرب مرة أخرى');
             } else {
               var body = json.decode(res.body);
-              if (body['success']) {
+              if (res.statusCode == 200) {
                 _btnController.success();
 
-                _showMsg(body['تمت العملية بنجاح']);
+                _showMsg('تمت العملية بنجاح');
               } else {
                 _btnController.error();
                 _showMsg(body['message']);
@@ -129,8 +134,11 @@ class _NewClearingState extends State<NewClearing> {
       _showMsg('حدث خطأ ما, جرب مرة أخرى');
       return false;
     } else {
-      var body = json.decode(res.body);
-      if (body['success']) {
+      var body = res.body;
+      print('Check user response : ${body}');
+
+      if (res.statusCode == 200) {
+        print('Check user response : ${body}');
         return true;
       } else {
         _btnController.error();
@@ -144,6 +152,22 @@ class _NewClearingState extends State<NewClearing> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('مقاصة جديدة'),
+        actions: [
+          IconButton(
+              onPressed: () async {
+                SharedPreferences localStorage =
+                    await SharedPreferences.getInstance();
+                await localStorage.clear();
+                await localStorage.remove('token');
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => Login(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.exit_to_app))
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(

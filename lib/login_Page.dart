@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:clearing_mobile/new_clearing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,9 +10,9 @@ import 'package:http/http.dart';
 import 'package:internet_checker_banner/internet_checker_banner.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:rounded_loading_button/rounded_loading_button.dart';
-import 'network/api.dart';
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'network/api.dart';
 
 class Login extends StatefulWidget {
   const Login({Key? key}) : super(key: key);
@@ -28,10 +31,12 @@ class _LoginState extends State<Login> {
 
   bool isConnected = false;
 
+  InternetCheckerBanner internetCheckerBanner = InternetCheckerBanner();
+
   @override
   void initState() {
     super.initState();
-    InternetCheckerBanner().initialize(
+    internetCheckerBanner.initialize(
       context,
       title: "لا يوجد إتصال إنترنت",
     );
@@ -54,7 +59,7 @@ class _LoginState extends State<Login> {
 
   @override
   void dispose() {
-    InternetCheckerBanner().dispose();
+    internetCheckerBanner.dispose();
     super.dispose();
   }
 
@@ -68,12 +73,13 @@ class _LoginState extends State<Login> {
     ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
-  void _login() async {
+  Future<void> _login() async {
     bool valid = _formKey.currentState?.validate() ?? false;
     if (!valid) {
       _showMsg("قم بإصلاح جميع الأخطاء");
     } else {
-      if (!isConnected) {
+      //Todo: cghhh
+      if (isConnected) {
         _showMsg("لا يوجد إتصال إنترنت");
       } else {
         var data = {'email': email, 'password': password};
@@ -84,12 +90,16 @@ class _LoginState extends State<Login> {
           print('Response equals null');
           _showMsg('حدث خطأ ما, جرب مرة أخرى');
         } else {
-          var body = json.decode(res.body);
-          if (body['success']) {
+          var body = (res.headers);
+          print('headers body $body');
+          if (res.statusCode == 200) {
             _btnController.success();
             SharedPreferences localStorage =
                 await SharedPreferences.getInstance();
-            localStorage.setString('token', json.encode(body['token']));
+            String? token =
+                body['set-cookie']?.split(';').first.split('=').last;
+            print('token : $token');
+            localStorage.setString('token', token ?? 'null');
             localStorage.setString('user', json.encode(body['user']));
             Navigator.pushReplacement(
               context,
@@ -149,7 +159,9 @@ class _LoginState extends State<Login> {
                     )),
                 controller: _btnController,
                 color: Theme.of(context).colorScheme.primary,
-                onPressed: () => _login(),
+                onPressed: () async {
+                  await _login();
+                },
               ),
               const SizedBox(
                 height: 16,
